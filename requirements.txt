@@ -1,0 +1,30 @@
+# PFLlib-DP Requirements
+# Instalar com: pip install -r requirements.txt
+
+# PyTorch (instalar separadamente com CUDA)
+# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0
+
+# Privacidade Diferencial
+opacus>=1.4.0
+
+# Computação científica
+numpy>=1.24.0
+scipy>=1.10.0
+
+# Machine Learning
+scikit-learn>=1.2.0
+
+# Visualização
+matplotlib>=3.7.0
+
+# Armazenamento de dados
+h5py>=3.8.0
+
+# Monitoramento
+tensorboard>=2.12.0
+
+# Utilitários (opcional)
+tqdm>=4.65.0
