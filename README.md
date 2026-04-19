@@ -1,35 +1,59 @@
-# GA-DPFL: Genetic Algorithm for Differentially Private Federated Learning
+# DPFL: Differentially Private Federated Learning
 
-This repository contains the implementation of **Adaptive Noise Allocation for Differentially Private Federated Learning via Genetic Optimization**, accepted at LANC 2026.
+Implementation of Differentially Private Federated Learning based on PFLlib with Opacus integration.
 
 ## Overview
 
-We propose a Genetic Algorithm (GA)-based framework for optimizing time-varying noise schedules in differentially private federated learning. The approach encodes noise schedule parameters as a chromosome with three genes:
+A framework for training federated learning models with differential privacy guarantees using DP-SGD. Supports MNIST and CIFAR-10 datasets with non-IID data distribution (Dirichlet alpha=0.2).
 
-- **σ_start**: Initial noise multiplier
-- **σ_end**: Final noise multiplier
-- **C**: Gradient clipping norm
+## Experimental Results
 
-The noise schedule follows a linear interpolation:
+### MNIST (50 rounds, 20 clients)
 
-```
-σ(t) = σ_start + (σ_end - σ_start) · t/T
-```
+| Algorithm | sigma | Accuracy | epsilon |
+|-----------|------:|--------:|--------:|
+| FedAvg    |  0    | 89.12%  |   0.00  |
+| FedAvg    |  1    | 55.40%  |   6.28  |
+| FedAvg    |  4    | 53.39%  |   0.95  |
+| FedAvg    | 12    | 48.50%  |   0.28  |
+| FedAvg    | 20    | 48.17%  |   0.18  |
+| SCAFFOLD  |  0    | 93.59%  |   0.00  |
+| SCAFFOLD  |  1    | 56.03%  |   6.28  |
+| SCAFFOLD  |  4    | 51.98%  |   0.95  |
+| SCAFFOLD  | 12    | 46.29%  |   0.28  |
+| SCAFFOLD  | 20    | 45.57%  |   0.18  |
+| FedALA    |  0    | 98.17%  |   0.00  |
+| FedALA    |  1    | 75.01%  |   6.28  |
+| FedALA    |  4    | 74.76%  |   0.95  |
+| FedALA    | 12    | 75.07%  |   0.28  |
+| FedALA    | 20    | 76.26%  |   0.18  |
 
-A fitness function balances model accuracy against privacy cost:
+### CIFAR-10 (50 rounds, 20 clients)
 
-```
-F(z) = Acc_max(z) - λ · ε_final(z)
-```
+| Algorithm | sigma | Accuracy | epsilon |
+|-----------|------:|--------:|--------:|
+| FedAvg    |  0    | 50.16%  |   0.00  |
+| FedAvg    |  1    | 23.86%  |   3.87  |
+| FedAvg    |  4    | 20.41%  |   0.60  |
+| FedAvg    | 12    | 12.01%  |   0.19  |
+| FedAvg    | 20    | 10.72%  |   0.14  |
+| SCAFFOLD  |  0    | 47.83%  |   0.00  |
+| SCAFFOLD  |  1    | 24.35%  |   3.87  |
+| SCAFFOLD  |  4    | 22.60%  |   0.60  |
+| SCAFFOLD  | 12    | 14.47%  |   0.19  |
+| SCAFFOLD  | 20    | 13.31%  |   0.14  |
+| FedALA    |  0    | 79.59%  |   0.00  |
+| FedALA    |  1    | 61.68%  |   3.87  |
+| FedALA    |  4    | 60.50%  |   0.60  |
+| FedALA    | 12    | 38.84%  |   0.19  |
+| FedALA    | 20    | 31.99%  |   0.14  |
 
-## Key Results
+### Key Findings
 
-| Algorithm | Configuration | Accuracy | ε | Fitness | Gain |
-|-----------|--------------|----------|---|---------|------|
-| FedAvg | Fixed σ=4 | 48.10% | 0.588 | 0.434 | -- |
-| FedAvg | GA [5.09→8.19, 1.81] | 49.48% | 0.346 | 0.460 | **+6.1%** |
-| FedALA | Fixed σ=20 | 72.77% | 0.134 | 0.714 | -- |
-| SCAFFOLD | Fixed σ=20 | 26.57% | 0.132 | 0.252 | -- |
+- **FedALA** consistently outperforms FedAvg and SCAFFOLD under DP noise
+- Higher sigma values provide stronger privacy (lower epsilon) but degrade accuracy
+- CIFAR-10 is more sensitive to DP noise than MNIST due to model complexity
+- FedALA maintains ~75% accuracy on MNIST even with sigma=20
 
 ## Installation
 
@@ -42,10 +66,6 @@ F(z) = Acc_max(z) - λ · ε_final(z)
 ### Setup
 
 ```bash
-# Clone the repository
-git clone https://github.com/ufpa-laser/ga-dpfl.git
-cd ga-dpfl
-
 # Create conda environment (recommended)
 conda env create -f env_cuda_latest.yaml
 conda activate fl
@@ -61,69 +81,30 @@ pip install -r requirements.txt
 ```bash
 cd dataset
 
-# For MNIST (non-IID, Dirichlet α=0.2, 20 clients)
+# For MNIST (non-IID, Dirichlet alpha=0.2, 20 clients)
 python generate_mnist.py noniid - dir 0.2
 
 # For CIFAR-10
 python generate_cifar10.py noniid - dir 0.2
 ```
 
-### 2. Run GA Optimization
+### 2. Run Training
 
 ```bash
 cd system
 
-# FedAvg with GA optimization
-python run_ag_mnist_fedavg.py \
-    --rounds 20 \
-    --clients 20 \
-    --population 10 \
-    --generations 20 \
-    --device_id 0
-```
-
-### 3. Run Fixed Baseline Experiments
-
-```bash
-cd system
-
+# Run experiments with multiple sigma values
 python run_fixed_sigma_mnist.py \
-    --algorithm FedAvg \
-    --sigma 4.0 \
-    --rounds 20 \
+    --algorithms FedAvg SCAFFOLD FedALA \
+    --sigmas 0 1 4 12 20 \
+    --rounds 50 \
     --clients 20
 ```
-
-### 4. Full Comparison (Fixed + GA)
-
-```bash
-cd system
-
-python run_full_comparison.py \
-    --rounds 20 \
-    --clients 20 \
-    --population 10 \
-    --generations 20 \
-    --device_id 0
-```
-
-## GA Parameters
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `--population` | 10 | Population size |
-| `--generations` | 20 | Number of generations |
-| `--mutation_rate` | 0.3 | Mutation probability per gene |
-| `--crossover_rate` | 0.8 | Crossover probability |
-| `--elitism` | 2 | Number of elite individuals preserved |
-| `--tournament_size` | 3 | Tournament selection size |
-| `--patience` | 6 | Early stopping patience |
-| `--min_diversity` | 0.01 | Minimum population diversity |
 
 ## Project Structure
 
 ```
-ga-dpfl/
+dpfl/
 ├── dataset/
 │   ├── generate_mnist.py      # MNIST data generation
 │   ├── generate_cifar10.py    # CIFAR-10 data generation
@@ -131,19 +112,12 @@ ga-dpfl/
 ├── system/
 │   ├── flcore/
 │   │   ├── clients/           # FL client implementations
-│   │   ├── servers/           # FL server implementations (FedAvg, FedALA, SCAFFOLD)
-│   │   └── trainmodel/        # Model training logic
-│   ├── models/                # Neural network architectures
-│   ├── optimization/
-│   │   ├── genetic_algorithm.py  # GA implementation
-│   │   ├── fitness.py            # Fitness evaluation
-│   │   └── client_groups.py      # Client grouping utilities
+│   │   ├── servers/           # FL server implementations
+│   │   ├── trainmodel/        # Model architectures
+│   │   └── optimizers/        # FL optimizers
 │   ├── utils/                 # Logging and helper functions
-│   ├── run_ag_mnist_fedavg.py    # GA optimization script
-│   ├── run_fixed_sigma_mnist.py  # Fixed baseline script
-│   └── run_full_comparison.py    # Full comparison script
+│   └── run_fixed_sigma_mnist.py  # Training script
 ├── requirements.txt
-├── env_cuda_latest.yaml
 └── README.md
 ```
 
@@ -156,29 +130,11 @@ ga-dpfl/
 ## Differential Privacy
 
 We use [Opacus](https://opacus.ai/) for DP-SGD implementation with:
-- Rényi Differential Privacy (RDP) accounting
-- Per-sample gradient clipping
+- Renyi Differential Privacy (RDP) accounting
+- Per-sample gradient clipping (C=1.0)
 - Gaussian noise injection
 - Privacy amplification by subsampling
 
-## Citation
-
-If you use this code, please cite our paper:
-
-```bibtex
-@inproceedings{silva2026adaptive,
-  title={Adaptive Noise Allocation for Differentially Private Federated Learning via Genetic Optimization},
-  author={Silva, Marcelo and Martins, Hugo and Bastos, Lucas and Veiga, Rafael and Rosario, Denis and Costa, Allan and Cerqueira, Eduardo},
-  booktitle={Proceedings of the 2026 Latin America Networking Conference (LANC)},
-  year={2026},
-  organization={ACM}
-}
-```
-
-## Acknowledgments
-
-This work extends [PFLlib](https://github.com/TsingZ0/PFLlib) with differential privacy support via Opacus.
-
 ## License
 
-This project is licensed under the GPL v2 License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GPL v2 License.
